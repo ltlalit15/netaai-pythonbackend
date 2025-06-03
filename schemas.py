@@ -3,10 +3,6 @@ from typing import Any, Optional, List
 from uuid import UUID
 from datetime import datetime
 
-
-
-
-
 class SubmissionCreate(BaseModel):
     email: EmailStr
     reason: str
@@ -19,7 +15,7 @@ class SubmissionResponse(BaseModel):
     user_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
 
 class SubmissionData(BaseModel):
     id: int
@@ -28,10 +24,7 @@ class SubmissionData(BaseModel):
     user_id: int
 
     class Config:
-        orm_mode = True
-
-
-
+        from_attributes = True  # Updated here
 
 class AdminProfile(BaseModel):
     id: int
@@ -40,14 +33,12 @@ class AdminProfile(BaseModel):
     phone_number: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
 
 class AdminProfileUpdate(BaseModel):
     name: Optional[str]
     email: Optional[EmailStr]
     phone_number: Optional[str]
-    
-
 
 class PromptOut(BaseModel):
     id: int
@@ -55,7 +46,7 @@ class PromptOut(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True    
+        from_attributes = True  # Updated here
         
 from enum import Enum
 class ProductTier(str, Enum):
@@ -65,14 +56,13 @@ class ProductTier(str, Enum):
 class AdminSubscriptionCreate(BaseModel):
     user_id: int
     product: ProductTier        
-    
 
 class SubscriptionData(BaseModel):
     id: int
     subscription_data: dict
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
 
 class User(BaseModel):
     id: int
@@ -83,7 +73,7 @@ class User(BaseModel):
     subscriptions: List[SubscriptionData] = []  # same name
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
 
 class ReportCreate(BaseModel):
     user_id: int
@@ -96,20 +86,16 @@ class ReportResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
 
+# simple user         
 
-#simple user         
-
-    
-    
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
     phone_number: str
     refferl: Optional[str] = None
-
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -124,7 +110,7 @@ class UserResponse(BaseModel):
     is_verified: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
         
 class UserUpdate(BaseModel):
     name: str
@@ -132,16 +118,12 @@ class UserUpdate(BaseModel):
     phone_number: str
     refferl: Optional[str] = None
 
-           
-
-
-
 class ProfileUserOut(BaseModel):
     name: str
     email: str
     refferl: Optional[str] = None
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
         
 class ProfileOut(BaseModel):
     profile_img: Optional[str] = None
@@ -154,11 +136,9 @@ class ProfileOut(BaseModel):
     user: ProfileUserOut
 
     class Config:
-        from_attributes = True  # for Pydantic v2
-        
+        from_attributes = True  # Already updated
 
 class ProfileUpdate(BaseModel):
-    
     profile_img: Optional[str] = None
     website: Optional[str] = None
     org_name: Optional[str] = None
@@ -166,20 +146,15 @@ class ProfileUpdate(BaseModel):
     where_to_get_esupplies: Optional[str] = None
     address: Optional[str] = None
     license_number: Optional[str] = None
-    
-    
 
-#for user pass update
+# for user pass update
 class PasswordUpdate(BaseModel):
     email: str
     old_password: str
     new_password: str
 
-
-
 from uuid import UUID
 from datetime import datetime
-
 
 class ChatSessionCreate(BaseModel):
     user_id: int
@@ -191,4 +166,4 @@ class ChatSessionOut(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated here
