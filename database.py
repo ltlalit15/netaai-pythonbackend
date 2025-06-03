@@ -5,8 +5,11 @@ from sqlalchemy.ext.declarative import declarative_base
 #URL_DATABASE='mysql+pymysql://root:Pak@123@localhost:3306/neta_ai'
 #URL_DATABASE = 'mysql+pymysql://root:Umar%40123@3.89.28.11:3306/neta_ai'
 
+# local db
+#URL_DATABASE = 'mysql+pymysql://root:@127.0.0.1:3306/netapython'
 
-URL_DATABASE = 'mysql+pymysql://root:@127.0.0.1:3306/netapython'
+# live db
+URL_DATABASE = 'mysql+pymysql://root:BMxugsjrZIflKLsZbymdIPIRyfJRxZFd@switchback.proxy.rlwy.net:20354/railway'
 
 #DATABASE_URL = "mysql+pymysql://root:123Secure%21@localhost/neta_ai"
 engine=create_engine(URL_DATABASE)
