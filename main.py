@@ -27,6 +27,9 @@ from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 from contextlib import contextmanager
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Generator
