@@ -1,3 +1,4 @@
+aiofiles
 annotated-types==0.7.0
 anyio==4.9.0
 bcrypt==4.0.1
@@ -43,3 +44,5 @@ tqdm==4.67.1
 typing_extensions==4.12.2
 urllib3==2.3.0
 uvicorn==0.34.0
+aiosmtplib
+aiofiles
