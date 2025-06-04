@@ -12,7 +12,7 @@ from typing import List
 
 from fastapi import UploadFile
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Request, Query
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 from email.mime.text import MIMEText
