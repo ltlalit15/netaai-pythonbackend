@@ -49,7 +49,7 @@ app = FastAPI(root_path="/api")
 
 # Allow origins setup
 origins = [
-    "http://localhost:5173",                      # local frontend
+    "http://localhost:5174",                      # local frontend
     "https://netaai-pythonbackend-production-30ce.up.railway.app"  # backend
    
 ]
