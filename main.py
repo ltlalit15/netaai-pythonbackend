@@ -272,7 +272,10 @@ async def forgot_password(email: str, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        # Generate reset token
         token = generate_reset_token(user.id)
+        
+        # Send reset email asynchronously
         await send_reset_email(email, token)
         
         return {"message": "Password reset link sent to your email"}
@@ -282,6 +285,7 @@ async def forgot_password(email: str, db: Session = Depends(get_db)):
             status_code=500,
             detail="Failed to process password reset request. Please try again."
         )
+
 
 # Create email templates directory and files
 def create_email_templates():
@@ -418,18 +422,28 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         "user_id": db_user.id
     }
 
-# user Forgot Password  with email  end point 
 @app.post("/forgot-password")
 def forgot_password(email: str, db: Session = Depends(get_db)):
     """Send password reset link to user email"""
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    token = generate_reset_token(user.id)
-    send_reset_email(email, token)
-    
-    return {"message": "Password reset link sent to your email"}
+        # Generate reset token
+        token = generate_reset_token(user.id)
+        
+        # Send reset email synchronously
+        send_reset_email(email, token)
+        
+        return {"message": "Password reset link sent to your email"}
+    except Exception as e:
+        logger.error(f"Error in forgot password: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process password reset request. Please try again."
+        )
+
 
 
 #user Reset Password with Token 
