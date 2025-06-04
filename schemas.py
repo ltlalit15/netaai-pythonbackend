@@ -73,7 +73,7 @@ class User(BaseModel):
     subscriptions: List[SubscriptionData] = []  # same name
 
     class Config:
-        orm_mode = True  # Updated here
+        from_attributes = True  # Updated here
 
 class ReportCreate(BaseModel):
     user_id: int
