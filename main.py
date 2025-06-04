@@ -265,7 +265,7 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
 @app.post("/forgot-password")
-async def forgot_password(email: str, db: Session = Depends(get_db)):
+def forgot_password(email: str, db: Session = Depends(get_db)):
     """Send password reset link to user email"""
     try:
         user = db.query(models.User).filter(models.User.email == email).first()
@@ -273,9 +273,16 @@ async def forgot_password(email: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="User not found")
 
         token = generate_reset_token(user.id)
-        await send_reset_email(email, token)
+        if not token:
+            raise HTTPException(status_code=500, detail="Failed to generate reset token.")
+        
+        # Log the token and email to check if they are generated correctly
+        logger.info(f"Generated token: {token} for email: {email}")
+
+        send_reset_email(email, token)
         
         return {"message": "Password reset link sent to your email"}
+    
     except Exception as e:
         logger.error(f"Error in forgot password: {e}")
         raise HTTPException(
