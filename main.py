@@ -260,6 +260,17 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
 
+# Generate reset token फ़ंक्शन - इसे सबसे ऊपर परिभाषित करें
+def generate_reset_token(user_id: int):
+    
+    expiration_time = datetime.utcnow() + timedelta(minutes=60)
+    payload = {"user_id": user_id, "exp": expiration_time}
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+
+app = FastAPI()
+
+
 def generate_verification_token(user_id: int):
     """Generate a JWT token with a 60-minute expiration"""
     expiration_time = datetime.utcnow() + timedelta(minutes=60)
