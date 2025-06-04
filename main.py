@@ -1396,7 +1396,7 @@ async def chat_with_model(
     request: ModelRequest,
     db: Session = Depends(get_db)
 ):
-    """Chat endpoint that integrates existing model with RAG system"""
+    """Chat endpoint that uses the existing trained model"""
     try:
         # Verify user and session
         user = db.query(models.User).filter(models.User.id == request.user_id).first()
@@ -1410,20 +1410,7 @@ async def chat_with_model(
         if not session:
             raise HTTPException(status_code=404, detail="Chat session not found")
 
-        # Get context from RAG system
-        rag_context = await get_rag_context(request.message)
-        
-        # Get response from existing model with RAG context
-        model_response = await get_model_response(
-            ModelRequest(
-                message=request.message,
-                context=rag_context,
-                user_id=request.user_id,
-                session_id=request.session_id
-            )
-        )
-
-        # Store chat in database
+        # Store user message in database first
         chat_data = {
             "role": "user",
             "content": request.message,
@@ -1434,16 +1421,28 @@ async def chat_with_model(
             session.chats = []
             
         session.chats.append(chat_data)
-        
+        db.commit()
+
+        try:
+            # Get response from existing model
+            model_response = await get_model_response(request)
+        except Exception as model_error:
+            logger.error(f"Model error: {model_error}")
+            # If model service fails, return a fallback response
+            model_response = ModelResponse(
+                response="I apologize, but I'm currently unable to process your request. Please try again later.",
+                confidence=0.0,
+                model_used="fallback"
+            )
+
+        # Store assistant response in database
         assistant_chat = {
             "role": "assistant",
             "content": model_response.response,
-            "sources": model_response.sources,
             "confidence": model_response.confidence,
             "timestamp": datetime.utcnow().isoformat()
         }
         session.chats.append(assistant_chat)
-        
         db.commit()
 
         return model_response
@@ -1457,27 +1456,21 @@ async def chat_with_model(
 
 @app.get("/model-status")
 async def check_model_status():
-    """Check if the existing model and RAG system are available"""
+    """Check if the existing model is available"""
     try:
         async with httpx.AsyncClient() as client:
-            # Check existing model status
-            model_response = await client.get(f"{ModelConfig.EXISTING_MODEL_URL}/health")
+            # Check model status
+            model_response = await client.get(f"{ModelConfig.MODEL_URL}/health")
             model_status = model_response.status_code == 200
 
-            # Check RAG system status
-            rag_response = await client.get(f"{ModelConfig.RAG_SYSTEM_URL}/health")
-            rag_status = rag_response.status_code == 200
-
             return {
-                "existing_model_status": "healthy" if model_status else "unhealthy",
-                "rag_system_status": "healthy" if rag_status else "unhealthy",
-                "overall_status": "healthy" if (model_status and rag_status) else "unhealthy"
+                "model_status": "healthy" if model_status else "unhealthy",
+                "overall_status": "healthy" if model_status else "unhealthy"
             }
     except Exception as e:
         logger.error(f"Error checking model status: {e}")
         return {
-            "existing_model_status": "unhealthy",
-            "rag_system_status": "unhealthy",
+            "model_status": "unhealthy",
             "overall_status": "unhealthy",
             "error": str(e)
         }
