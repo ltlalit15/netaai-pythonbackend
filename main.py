@@ -260,7 +260,7 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
 
-# Generate reset token फ़ंक्शन - इसे सबसे ऊपर परिभाषित करें
+
 def generate_reset_token(user_id: int):
     
     expiration_time = datetime.utcnow() + timedelta(minutes=60)
