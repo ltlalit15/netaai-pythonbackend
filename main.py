@@ -46,11 +46,19 @@ import httpx
 from pydantic import BaseModel
 
 app = FastAPI(root_path="/api")
+
+# Allow origins setup
+origins = [
+    "http://localhost:5173",                      # local frontend
+    "https://netaai-pythonbackend-production-30ce.up.railway.app"  # backend
+   
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
     max_age=3600,
 )
