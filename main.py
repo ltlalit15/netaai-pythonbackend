@@ -133,12 +133,7 @@ def get_db():
 SECRET_KEY = os.getenv("SECRET_KEY", "hh45h34brb##$67j#*chscbecyej")  # Fallback for development only
 from datetime import datetime, timedelta
 
-def generate_verification_token(user_id: int):
-    """Generate a JWT token with a 60-minute expiration"""
-    expiration_time = datetime.utcnow() + timedelta(minutes=60)
-    payload = {"user_id": user_id, "exp": expiration_time}
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-    return token
+
 
 # Initialize Jinja2 environment
 env = Environment(loader=FileSystemLoader('templates'))
@@ -264,6 +259,16 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         logger.error(f"Error in user registration: {e}")
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
+
+def generate_verification_token(user_id: int):
+    """Generate a JWT token with a 60-minute expiration"""
+    expiration_time = datetime.utcnow() + timedelta(minutes=60)
+    payload = {"user_id": user_id, "exp": expiration_time}
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+
+app = FastAPI()
+
 @app.post("/forgot-password")
 async def forgot_password(email: str, db: Session = Depends(get_db)):
     """Send password reset link to user email"""
@@ -272,10 +277,7 @@ async def forgot_password(email: str, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Generate reset token
         token = generate_reset_token(user.id)
-        
-        # Send reset email asynchronously
         await send_reset_email(email, token)
         
         return {"message": "Password reset link sent to your email"}
@@ -422,27 +424,18 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         "user_id": db_user.id
     }
 
+# user Forgot Password  with email  end point 
 @app.post("/forgot-password")
 def forgot_password(email: str, db: Session = Depends(get_db)):
     """Send password reset link to user email"""
-    try:
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Generate reset token
-        token = generate_reset_token(user.id)
-        
-        # Send reset email synchronously
-        send_reset_email(email, token)
-        
-        return {"message": "Password reset link sent to your email"}
-    except Exception as e:
-        logger.error(f"Error in forgot password: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to process password reset request. Please try again."
-        )
+    token = generate_reset_token(user.id)
+    send_reset_email(email, token)
+    
+    return {"message": "Password reset link sent to your email"}
 
 
 
