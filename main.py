@@ -46,11 +46,19 @@ import httpx
 from pydantic import BaseModel
 
 app = FastAPI(root_path="/api")
+
+# Allow origins setup
+origins = [
+    "http://localhost:5174",                      # local frontend
+    "https://netaai-pythonbackend-production-30ce.up.railway.app"  # backend
+   
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "https://askneta.com,http://localhost:3000").split(","),
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
     max_age=3600,
 )
@@ -72,11 +80,11 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-EMAIL_HOST = os.getenv("EMAIL_HOST")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT"))
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS") == "True"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "meatitd11@gmail.com")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "vlolxfmlaysxgmqc")
 
 ALLOWED_FILE_TYPES = {
     'image/jpeg': '.jpg',
@@ -133,15 +141,18 @@ def get_db():
 SECRET_KEY = os.getenv("SECRET_KEY", "hh45h34brb##$67j#*chscbecyej")  # Fallback for development only
 from datetime import datetime, timedelta
 
-def generate_verification_token(user_id: int):
-    """Generate a JWT token with a 60-minute expiration"""
-    expiration_time = datetime.utcnow() + timedelta(minutes=60)
-    payload = {"user_id": user_id, "exp": expiration_time}
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-    return token
+
 
 # Initialize Jinja2 environment
 env = Environment(loader=FileSystemLoader('templates'))
+
+# Uvicorn server startup block
+# --------------------------
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting server on port {port}...")
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 class EmailError(Exception):
     pass
@@ -158,10 +169,10 @@ async def send_email_async(
         html_content = template.render(**template_data)
         
         # Create message
-    msg = MIMEMultipart()
-    msg["From"] = EMAIL_HOST_USER
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_HOST_USER
         msg["To"] = to_email
-    msg["Subject"] = subject
+        msg["Subject"] = subject
         msg.attach(MIMEText(html_content, "html"))
         
         # Send email asynchronously
@@ -203,7 +214,7 @@ async def send_verification_email(email: str, user_id: int) -> None:
 async def send_reset_email(email: str, token: str) -> None:
     """Send a password reset email with a token link"""
     reset_link = f"https://askneta.com/reset-password?token={token}"
-
+    
     try:
         await send_email_async(
             to_email=email,
@@ -256,6 +267,27 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         logger.error(f"Error in user registration: {e}")
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
+
+
+def generate_reset_token(user_id: int):
+    
+    expiration_time = datetime.utcnow() + timedelta(minutes=60)
+    payload = {"user_id": user_id, "exp": expiration_time}
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+
+app = FastAPI()
+
+
+def generate_verification_token(user_id: int):
+    """Generate a JWT token with a 60-minute expiration"""
+    expiration_time = datetime.utcnow() + timedelta(minutes=60)
+    payload = {"user_id": user_id, "exp": expiration_time}
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+
+app = FastAPI()
+
 @app.post("/forgot-password")
 async def forgot_password(email: str, db: Session = Depends(get_db)):
     """Send password reset link to user email"""
@@ -274,6 +306,7 @@ async def forgot_password(email: str, db: Session = Depends(get_db)):
             status_code=500,
             detail="Failed to process password reset request. Please try again."
         )
+
 
 # Create email templates directory and files
 def create_email_templates():
@@ -389,7 +422,7 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if not db_user or not auth.verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
+    
     if not db_user.is_verified:
         # Resend verification email if not verified
         try:
@@ -422,6 +455,7 @@ def forgot_password(email: str, db: Session = Depends(get_db)):
     send_reset_email(email, token)
     
     return {"message": "Password reset link sent to your email"}
+
 
 
 #user Reset Password with Token 
@@ -524,12 +558,12 @@ async def update_profile(
     db: Session = Depends(get_db)
 ):
     try:
-    profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
+        if not profile:
+            raise HTTPException(status_code=404, detail="Profile not found")
 
         # Handle file upload
-    if profile_img:
+        if profile_img:
             filename = await validate_file(profile_img)
             if filename:
                 upload_dir = Path("static/uploads")
@@ -549,25 +583,25 @@ async def update_profile(
                 profile.profile_img = str(file_path)
 
         # Update other fields
-    if website is not None:
-        profile.website = website
-    if org_name is not None:
-        profile.org_name = org_name
-    if number_of_electricians is not None:
-        profile.number_of_electricians = parse_optional_int(number_of_electricians)
-    if where_to_get_esupplies is not None:
-        profile.where_to_get_esupplies = where_to_get_esupplies
-    if address is not None:
-        profile.address = address
+        if website is not None:
+            profile.website = website
+        if org_name is not None:
+            profile.org_name = org_name
+        if number_of_electricians is not None:
+            profile.number_of_electricians = parse_optional_int(number_of_electricians)
+        if where_to_get_esupplies is not None:
+            profile.where_to_get_esupplies = where_to_get_esupplies
+        if address is not None:
+            profile.address = address
         if license_number is not None:
-        profile.license_number = license_number
+            profile.license_number = license_number
 
         # Update user fields
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user:
-        if name is not None:
-            user.name = name
-        if email is not None:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user:
+            if name is not None:
+                user.name = name
+            if email is not None:
                 # Check if email is already taken
                 existing_user = db.query(models.User).filter(
                     models.User.email == email,
@@ -575,13 +609,13 @@ async def update_profile(
                 ).first()
                 if existing_user:
                     raise HTTPException(status_code=400, detail="Email already taken")
-            user.email = email
-        if refferl is not None:
-            user.refferl = refferl   
+                user.email = email
+            if refferl is not None:
+                user.refferl = refferl
 
-    db.commit()
-    db.refresh(profile)
-    return {"message": "Profile updated successfully", "profile_id": profile.id}
+        db.commit()
+        db.refresh(profile)
+        return {"message": "Profile updated successfully", "profile_id": profile.id}
 
     except Exception as e:
         logger.error(f"Error updating profile: {e}")
@@ -792,40 +826,40 @@ def update_subscription_status(db: Session, user_id: int, subscription_data: dic
 @app.post("/create-checkout-session")
 async def create_checkout_session_pro(user_id: int, db: Session = Depends(get_db)):
     async def _create_session():
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    # Check for existing subscription
+        # Check for existing subscription
         existing_sub = db.query(models.Subscription).filter(
             models.Subscription.user_id == user_id
         ).order_by(models.Subscription.id.desc()).first()
         
-    if existing_sub:
-        product = existing_sub.subscription_data.get("product", "").lower()
-        status = existing_sub.subscription_data.get("status", "").lower()
-
-        if product == "pro tier" and status == "active":
+        if existing_sub:
+            product = existing_sub.subscription_data.get("product", "").lower()
+            status = existing_sub.subscription_data.get("status", "").lower()
+            
+            if product == "pro tier" and status == "active":
                 raise HTTPException(
                     status_code=400,
                     detail="You already have an active Pro subscription"
                 )
 
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{"price": "price_1RIjg4AkiLZQygvDvqn9t6FY", "quantity": 1}],
-            mode="subscription",
-            success_url="https://askneta.com/payment-success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://askneta.com/dashboard/subscription",
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{"price": "price_1RIjg4AkiLZQygvDvqn9t6FY", "quantity": 1}],
+                mode="subscription",
+                success_url="https://askneta.com/payment-success?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url="https://askneta.com/dashboard/subscription",
                 metadata={"user_id": str(user.id)},
                 customer_email=user.email,  # Pre-fill customer email
                 allow_promotion_codes=True,  # Allow promo codes
-        )
-        return {"checkout_url": session.url}
+            )
+            return {"checkout_url": session.url}
         except StripeError as e:
             logger.error(f"Stripe error creating checkout session: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e))
 
     return await handle_stripe_error(_create_session)
 
@@ -846,24 +880,24 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     try:
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
             user_id = int(session.get("metadata", {}).get("user_id"))
-        subscription_id = session.get("subscription")
+            subscription_id = session.get("subscription")
 
             if not user_id or not subscription_id:
                 raise HTTPException(status_code=400, detail="Missing user_id or subscription_id")
 
             # Update subscription metadata
-                stripe.Subscription.modify(
-                    subscription_id,
+            stripe.Subscription.modify(
+                subscription_id,
                 metadata={"user_id": str(user_id)}
-                )
+            )
 
         elif event["type"] in ["invoice.paid", "invoice.payment_failed"]:
-        invoice = event["data"]["object"]
-        subscription_id = invoice.get("subscription")
-
+            invoice = event["data"]["object"]
+            subscription_id = invoice.get("subscription")
+            
             if subscription_id:
                 subscription = stripe.Subscription.retrieve(subscription_id)
                 user_id = int(subscription.metadata.get("user_id", 0))
@@ -877,7 +911,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                         ).isoformat(),
                         "cancel_at_period_end": subscription.cancel_at_period_end,
                     }
-
+                    
                     if event["type"] == "invoice.paid":
                         subscription_data["last_payment_status"] = "succeeded"
                     else:
@@ -890,7 +924,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             user_id = int(subscription.metadata.get("user_id", 0))
             
             if user_id:
-    subscription_data = {
+                subscription_data = {
                     "subscription_id": subscription.id,
                     "status": "canceled",
                     "canceled_at": datetime.fromtimestamp(
@@ -1279,56 +1313,76 @@ def get_all_reports(
 
 
 
-# AI Model Integration
+# AI Model and RAG Integration
 class ModelConfig:
     # Your existing model's endpoint
-    MODEL_URL = os.getenv("MODEL_URL", "http://localhost:8000/model")
+    EXISTING_MODEL_URL = os.getenv("EXISTING_MODEL_URL", "http://localhost:8000/model")
+    # RAG system endpoint
+    RAG_SYSTEM_URL = os.getenv("RAG_SYSTEM_URL", "http://localhost:8001/rag")
 
 class ChatMessage(BaseModel):
     role: str
     content: str
     timestamp: datetime
 
+class RAGContext(BaseModel):
+    query: str
+    relevant_docs: List[Dict[str, Any]]
+    confidence: float
+
 class ModelRequest(BaseModel):
     message: str
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[RAGContext] = None
     user_id: int
     session_id: int
 
 class ModelResponse(BaseModel):
     response: str
-    confidence: float = 1.0
-    model_used: str = "existing_model"
-    context: Optional[Dict[str, Any]] = None
+    sources: Optional[List[Dict[str, Any]]] = None
+    confidence: float
+    model_used: str = "existing_model"  # To track which model was used
+
+async def get_rag_context(query: str) -> RAGContext:
+    """Get relevant context from RAG system for the query"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{ModelConfig.RAG_SYSTEM_URL}/retrieve",
+                json={"query": query},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            return RAGContext(**data)
+        except httpx.HTTPError as e:
+            logger.error(f"RAG system error: {e}")
+            # Return empty context if RAG fails, but don't fail the request
+            return RAGContext(
+                query=query,
+                relevant_docs=[],
+                confidence=0.0
+            )
 
 async def get_model_response(request: ModelRequest) -> ModelResponse:
-    """Get response from the existing trained model"""
+    """Get response from the existing trained model with RAG context"""
     async with httpx.AsyncClient() as client:
         try:
             # Prepare the request to your existing model
             model_request = {
                 "message": request.message,
-                "context": request.context,
+                "context": request.context.dict() if request.context else None,
                 "user_id": request.user_id,
                 "session_id": request.session_id
             }
             
             # Call your existing model
             response = await client.post(
-                f"{ModelConfig.MODEL_URL}/predict",
+                f"{ModelConfig.EXISTING_MODEL_URL}/predict",
                 json=model_request,
                 timeout=30.0
             )
             response.raise_for_status()
-            data = response.json()
-            
-            # Ensure the response has the required fields
-            return ModelResponse(
-                response=data.get("response", "I apologize, but I couldn't process that request."),
-                confidence=data.get("confidence", 1.0),
-                model_used=data.get("model_used", "existing_model"),
-                context=data.get("context")
-            )
+            return ModelResponse(**response.json())
             
         except httpx.HTTPError as e:
             logger.error(f"Model API error: {e}")
@@ -1360,7 +1414,6 @@ async def chat_with_model(
         chat_data = {
             "role": "user",
             "content": request.message,
-            "context": request.context,
             "timestamp": datetime.utcnow().isoformat()
         }
         
@@ -1387,7 +1440,6 @@ async def chat_with_model(
             "role": "assistant",
             "content": model_response.response,
             "confidence": model_response.confidence,
-            "context": model_response.context,
             "timestamp": datetime.utcnow().isoformat()
         }
         session.chats.append(assistant_chat)
@@ -1422,3 +1474,9 @@ async def check_model_status():
             "overall_status": "unhealthy",
             "error": str(e)
         }
+
+# Add to your .env file:
+"""
+EXISTING_MODEL_URL=http://your-existing-model-url
+RAG_SYSTEM_URL=http://your-rag-system-url
+"""
