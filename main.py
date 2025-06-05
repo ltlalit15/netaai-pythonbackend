@@ -1414,6 +1414,7 @@ async def chat_with_model(
         chat_data = {
             "role": "user",
             "content": request.message,
+            "context": request.context,
             "timestamp": datetime.utcnow().isoformat()
         }
         
@@ -1440,6 +1441,7 @@ async def chat_with_model(
             "role": "assistant",
             "content": model_response.response,
             "confidence": model_response.confidence,
+            "context": model_response.context,
             "timestamp": datetime.utcnow().isoformat()
         }
         session.chats.append(assistant_chat)
