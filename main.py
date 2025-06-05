@@ -56,7 +56,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "https://askneta.com,http://localhost:3000,http://localhost:5173").split(","),
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "https://askneta.com,http://localhost:3000,http://localhost:5173,https://neta12.netlify.app/").split(","),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
